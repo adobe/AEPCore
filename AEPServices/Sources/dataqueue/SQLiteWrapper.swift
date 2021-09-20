@@ -14,7 +14,7 @@ import Foundation
 import SQLite3
 
 /// Helper class for SQLite database operations
-internal struct SQLiteWrapper {
+public struct SQLiteWrapper {
     private static let LOG_PREFIX = "SQLiteWrapper"
 
     /// Connect SQLite database with provide database name and database file path.
@@ -23,7 +23,7 @@ internal struct SQLiteWrapper {
     ///   - databaseFilePath: the path to the database file
     ///   - databaseName: the database name
     /// - Returns: the database connection
-    static func connect(databaseFilePath: FileManager.SearchPathDirectory, databaseName: String) -> OpaquePointer? {
+    public static func connect(databaseFilePath: FileManager.SearchPathDirectory, databaseName: String) -> OpaquePointer? {
         guard !databaseName.isEmpty else {
             Log.warning(label: LOG_PREFIX, "Failed to open database - database name provided is empty")
             return nil
@@ -48,7 +48,7 @@ internal struct SQLiteWrapper {
     /// - Parameter database: the database connection
     /// - Returns: True if the database connection is successfully closed
     @discardableResult
-    static func disconnect(database: OpaquePointer) -> Bool {
+    public static func disconnect(database: OpaquePointer) -> Bool {
         let code = sqlite3_close(database)
         guard code == SQLITE_OK else {
             Log.warning(label: LOG_PREFIX, "Failed to open database, error code \(code)")
@@ -62,7 +62,7 @@ internal struct SQLiteWrapper {
     ///   - database: the database connection
     ///   - sql: the SQL statement
     /// - Returns: True if the SQL statement is successfully executed
-    static func execute(database: OpaquePointer, sql: String) -> Bool {
+    public static func execute(database: OpaquePointer, sql: String) -> Bool {
         if sqlite3_exec(database, sql, nil, nil, nil) != SQLITE_OK {
             let errMsg = String(cString: sqlite3_errmsg(database))
             Log.warning(label: LOG_PREFIX, "Failed to execute SQL: \(sql) (\(errMsg)).")
@@ -76,7 +76,7 @@ internal struct SQLiteWrapper {
     ///   - database: the database connection
     ///   - sql: the SQL statement
     /// - Returns: an `Optional` result of a database  query
-    static func query(database: OpaquePointer, sql: String) -> [[String: String]]? {
+    public static func query(database: OpaquePointer, sql: String) -> [[String: String]]? {
         var result: [[String: String]] = []
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK else {
@@ -117,7 +117,7 @@ internal struct SQLiteWrapper {
     ///   - database: the database connection
     ///   - tableName: the database name
     /// - Returns: True, if the database exists, otherwise false
-    static func tableExists(database: OpaquePointer, tableName: String) -> Bool {
+    public static func tableExists(database: OpaquePointer, tableName: String) -> Bool {
         let sql = "select count(*) from sqlite_master where type='table' and name='\(tableName)';"
         if let result = query(database: database, sql: sql), let firstColumn = result.first {
             if firstColumn[Array(firstColumn.keys)[0]] == "1" {
@@ -132,7 +132,7 @@ internal struct SQLiteWrapper {
     ///   - database: the database connection
     ///   - tableName: the database name
     /// - Returns: True, if the database is empty, otherwise false
-    static func tableIsEmpty(database: OpaquePointer, tableName: String) -> Bool {
+    public static func tableIsEmpty(database: OpaquePointer, tableName: String) -> Bool {
         let sql = "SELECT COUNT(*) FROM \(tableName)"
         let res = query(database: database, sql: sql)?.first?["COUNT(*)"]
         return res == "0"

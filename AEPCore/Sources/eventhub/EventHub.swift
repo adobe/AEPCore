@@ -30,6 +30,7 @@ final class EventHub {
     private let eventQueue = OperationOrderer<Event>("EventHub")
     private var preprocessors = ThreadSafeArray<EventPreprocessor>(identifier: "com.adobe.eventHub.preprocessors.queue")
     private var started = false // true if the `EventHub` is started, false otherwise. Should only be accessed from within the `eventHubQueue`
+    private var eventHistory = EventHistory()
 
     #if DEBUG
         public internal(set) static var shared = EventHub()
@@ -86,6 +87,11 @@ final class EventHub {
             self?.eventQueue.add(event)
             Log.trace(label: self?.LOG_TAG ?? "EventHub",
                       "Dispatching Event #\(String(describing: self?.eventNumberMap[event.id] ?? 0)) - \(event)")
+
+            // record the event in history if it has a mask
+            if event.mask != nil {
+                self?.eventHistory?.recordEvent(event)
+            }
         }
     }
 

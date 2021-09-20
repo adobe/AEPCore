@@ -39,18 +39,27 @@ public class Event: NSObject, Codable {
 
     /// Event description used for logging
     @objc override public var description: String {
-        // swiftformat:disable indent
-        return "\n[\n" +
-                "  id: \(id.uuidString)\n" +
-                "  name: \(name)\n" +
-                "  type: \(type)\n" +
-                "  source: \(source)\n" +
-                "  data: \(PrettyDictionary.prettify(data))\n" +
-                "  timestamp: \(timestamp.description)\n" +
-                "  responseId: \(String(describing: responseID?.uuidString))\n" +
-                "]"
-        // swiftformat:enable indent
+        return """
+            [
+              id: \(id.uuidString)
+              name: \(name)
+              type: \(type)
+              source: \(source)
+              data: \(PrettyDictionary.prettify(data))
+              timestamp: \(timestamp.description)
+              responseId: \(String(describing: responseID?.uuidString))
+              mask: \(String(describing: mask))
+            ]
+        """
     }
+
+    /// Specifies the properties in the Event and its `data` that should be used in the hash for `EventHistory` storage.
+    @objc public private(set) var mask: [String]?
+
+    /// A calculated hash that represents this Event as defined by its properties and the provided `mask`
+    @objc public lazy var eventHash: UInt32 = {
+        return data?.fnv1a32(mask: mask) ?? 0
+    }()
 
     /// Creates a new `Event` with the given parameters
     /// - Parameters:
@@ -69,13 +78,27 @@ public class Event: NSObject, Codable {
     ///   - type: `EventType` for the `Event`
     ///   - source: `EventSource` for the `Event`
     ///   - data: Any associated data with this `Event`
+    ///   - mask: Defines which properties should be used in creation of the Event's hash
+    @objc
+    public convenience init(name: String, type: String, source: String, data: [String: Any]?, mask: [String]? = nil) {
+        self.init(name: name, type: type, source: source, data: data, requestEvent: nil, mask: mask)
+    }
+
+    /// Creates a new `Event` with the given parameters
+    /// - Parameters:
+    ///   - name: Name for the `Event`
+    ///   - type: `EventType` for the `Event`
+    ///   - source: `EventSource` for the `Event`
+    ///   - data: Any associated data with this `Event`
     ///   - requestEvent: The requesting `Event` for which this `Event` will be a response
-    private init(name: String, type: String, source: String, data: [String: Any]?, requestEvent: Event?) {
+    ///   - mask: Defines which properties should be used in creation of the Event's hash
+    private init(name: String, type: String, source: String, data: [String: Any]?, requestEvent: Event?, mask: [String]? = nil) {
         self.name = name
         self.type = type
         self.source = source
         self.data = data
         responseID = requestEvent?.id
+        self.mask = mask
     }
 
     /// Creates a new `Event` where the `responseID` is equal to the `id` of this `Event`
@@ -93,7 +116,7 @@ public class Event: NSObject, Codable {
     /// - Parameters:
     ///   - data: Any associated data with this `Event`
     internal func copyWithNewData(data: [String: Any]?) -> Event {
-        let newEvent = Event(name: self.name, type: self.type, source: self.source, data: data)
+        let newEvent = Event(name: self.name, type: self.type, source: self.source, data: data, mask: self.mask)
         newEvent.id = self.id
         newEvent.timestamp = self.timestamp
         newEvent.responseID = self.responseID
@@ -109,6 +132,7 @@ public class Event: NSObject, Codable {
         case data
         case timestamp
         case responseID
+        case mask
     }
 
     public required init(from decoder: Decoder) throws {
@@ -122,6 +146,7 @@ public class Event: NSObject, Codable {
         data = AnyCodable.toAnyDictionary(dictionary: anyCodableDict)
         timestamp = try values.decode(Date.self, forKey: .timestamp)
         responseID = try? values.decode(UUID.self, forKey: .responseID)
+        mask = try? values.decode([String].self, forKey: .mask)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -134,5 +159,6 @@ public class Event: NSObject, Codable {
         try container.encode(AnyCodable.from(dictionary: data), forKey: .data)
         try container.encode(timestamp, forKey: .timestamp)
         try container.encode(responseID, forKey: .responseID)
+        try container.encode(mask, forKey: .mask)
     }
 }
